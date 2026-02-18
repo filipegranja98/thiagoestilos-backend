@@ -189,39 +189,44 @@ def detalhe_agendamento(request, token):
 @require_http_methods(["PUT"])
 def reagendar(request, token):
     try:
+        # 1. Busca o agendamento atual
         agendamento = Agendamento.objects.get(token=token)
+        cliente = agendamento.cliente
     except Agendamento.DoesNotExist:
         return JsonResponse({"error": "Token inválido"}, status=404)
 
     try:
         payload = json.loads(request.body)
 
-        # Atualiza somente os campos enviados
-        cliente = agendamento.cliente
-        if "nome" in payload and payload["nome"]:
-            cliente.nome = payload["nome"]
-        if "telefone" in payload and payload["telefone"]:
-            cliente.telefone = payload["telefone"]
+        # 2. ATUALIZAÇÃO PARCIAL: Só altera se o campo vier no payload e não for vazio
+        # Se o usuário não mexer no campo, o 'get' mantém o que já está no banco
+        nome_novo = payload.get("nome")
+        if nome_novo:
+            cliente.nome = nome_novo
+
+        telefone_novo = payload.get("telefone")
+        if telefone_novo:
+            cliente.telefone = telefone_novo
+
         cliente.save()
 
-        if "servico_id" in payload and payload["servico_id"]:
-            agendamento.servico = get_object_or_404(Servico, id=payload["servico_id"])
+        # 3. Atualiza os dados do agendamento
+        servico_id = payload.get("servico_id")
+        if servico_id:
+            agendamento.servico = get_object_or_404(Servico, id=servico_id)
 
-        if "data" in payload and payload["data"]:
-            agendamento.data = payload["data"]
+        if payload.get("data"):
+            agendamento.data = payload.get("data")
 
-        if "horario" in payload and payload["horario"]:
-            agendamento.horario = payload["horario"]
+        if payload.get("horario"):
+            agendamento.horario = payload.get("horario")
 
         agendamento.save()
 
-        # 🔹 ADICIONE ESTA LINHA AQUI:
+        # 4. SINCRONIZAÇÃO: Força o objeto agendamento a enxergar as mudanças do cliente
         agendamento.refresh_from_db()
 
-        # Agora o agendamento terá o cliente atualizado na memória
-        whatsapp_url = gerar_link_whatsapp_reagendamento(agendamento)
-
-        # Garante que a mensagem do WhatsApp tenha sempre nome e telefone
+        # 5. Geração do link (Agora com garantia de dados presentes)
         whatsapp_url = gerar_link_whatsapp_reagendamento(agendamento)
 
         return JsonResponse({
