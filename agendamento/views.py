@@ -195,12 +195,26 @@ def reagendar(request, token):
 
     try:
         payload = json.loads(request.body)
+
+        novo_nome = payload.get("nome")
+        novo_telefone = payload.get("telefone")
+        novo_servico_id = payload.get("servico_id")
         nova_data = payload.get("data")
         novo_horario = payload.get("horario")
 
-        if not nova_data or not novo_horario:
+        if not all([novo_nome, novo_telefone, novo_servico_id, nova_data, novo_horario]):
             return JsonResponse({"error": "Dados incompletos"}, status=400)
 
+        # 🔹 Atualiza cliente
+        agendamento.cliente.nome = novo_nome
+        agendamento.cliente.telefone = novo_telefone
+        agendamento.cliente.save()
+
+        # 🔹 Atualiza serviço
+        novo_servico = get_object_or_404(Servico, id=novo_servico_id)
+        agendamento.servico = novo_servico
+
+        # 🔹 Atualiza data e horário
         agendamento.data = nova_data
         agendamento.horario = novo_horario
         agendamento.save()
