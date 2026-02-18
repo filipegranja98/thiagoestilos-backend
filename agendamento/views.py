@@ -52,13 +52,12 @@ Guarde este token para reagendar ou cancelar futuramente.
 # WHATSAPP - REAGENDAMENTO
 # ===============================
 
-def gerar_link_whatsapp_reagendamento(agendamento, nome_cliente, telefone_cliente):
-    # Usamos as variáveis passadas diretamente, não o objeto agendamento.cliente
+def gerar_link_whatsapp_reagendamento(agendamento):
     mensagem = f"""
 Reagendamento solicitado
 
-Cliente: {nome_cliente}
-Telefone: {telefone_cliente}
+Cliente: {agendamento.cliente.nome}
+Telefone: {agendamento.cliente.telefone}
 
 Servico: {agendamento.servico.nome}
 
@@ -70,8 +69,10 @@ Token do agendamento:
 
 Reagendamento informado pelo cliente.
 """
+
     mensagem_codificada = urllib.parse.quote(mensagem)
     return f"https://wa.me/{BARBEIRO_PHONE}?text={mensagem_codificada}"
+
 
 # ===============================
 # WHATSAPP - CANCELAMENTO
@@ -184,12 +185,16 @@ def detalhe_agendamento(request, token):
 # REAGENDAR
 # ===============================
 
+# ===============================
+# REAGENDAR (VERSÃO CORRIGIDA)
+# ===============================
+
 @csrf_exempt
 @require_http_methods(["PUT"])
 def reagendar(request, token):
     try:
-        # 1. Busca o agendamento atual
-        agendamento = Agendamento.objects.get(token=token)
+        # 1. Usamos select_related para garantir que o cliente venha junto com o agendamento
+        agendamento = Agendamento.objects.select_related('cliente', 'servico').get(token=token)
         cliente = agendamento.cliente
     except Agendamento.DoesNotExist:
         return JsonResponse({"error": "Token inválido"}, status=404)
@@ -197,8 +202,8 @@ def reagendar(request, token):
     try:
         payload = json.loads(request.body)
 
-        # 2. ATUALIZAÇÃO PARCIAL: Só altera se o campo vier no payload e não for vazio
-        # Se o usuário não mexer no campo, o 'get' mantém o que já está no banco
+        # 2. ATUALIZAÇÃO DO CLIENTE
+        # Pegamos o valor do payload. Se estiver vazio ou não existir, mantemos o que já está no banco.
         nome_novo = payload.get("nome")
         if nome_novo:
             cliente.nome = nome_novo
@@ -209,7 +214,7 @@ def reagendar(request, token):
 
         cliente.save()
 
-        # 3. Atualiza os dados do agendamento
+        # 3. ATUALIZAÇÃO DO AGENDAMENTO
         servico_id = payload.get("servico_id")
         if servico_id:
             agendamento.servico = get_object_or_404(Servico, id=servico_id)
@@ -222,10 +227,12 @@ def reagendar(request, token):
 
         agendamento.save()
 
-        # 4. SINCRONIZAÇÃO: Força o objeto agendamento a enxergar as mudanças do cliente
+        # 4. O SEGREDO: Atualizar a instância em memória.
+        # Isso força o Django a reler o banco de dados. Agora agendamento.cliente.nome
+        # terá o valor que acabamos de salvar acima.
         agendamento.refresh_from_db()
 
-        # 5. Geração do link (Agora com garantia de dados presentes)
+        # 5. Geração do link agora com os dados garantidos
         whatsapp_url = gerar_link_whatsapp_reagendamento(agendamento)
 
         return JsonResponse({
@@ -234,8 +241,8 @@ def reagendar(request, token):
         })
 
     except Exception as e:
+        # Se houver erro de validação da sua model (domingos, datas passadas), ele cairá aqui
         return JsonResponse({"error": str(e)}, status=400)
-
 
 
 # ===============================
