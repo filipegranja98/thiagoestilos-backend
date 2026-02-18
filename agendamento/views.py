@@ -215,6 +215,12 @@ def reagendar(request, token):
 
         agendamento.save()
 
+        # 🔹 ADICIONE ESTA LINHA AQUI:
+        agendamento.refresh_from_db()
+
+        # Agora o agendamento terá o cliente atualizado na memória
+        whatsapp_url = gerar_link_whatsapp_reagendamento(agendamento)
+
         # Garante que a mensagem do WhatsApp tenha sempre nome e telefone
         whatsapp_url = gerar_link_whatsapp_reagendamento(agendamento)
 
