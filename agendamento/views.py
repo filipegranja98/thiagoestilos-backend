@@ -196,27 +196,26 @@ def reagendar(request, token):
     try:
         payload = json.loads(request.body)
 
-        # Atualiza somente os campos que vieram no payload
-        if "nome" in payload:
-            agendamento.cliente.nome = payload["nome"]
-            agendamento.cliente.save()
+        # Atualiza somente os campos enviados
+        cliente = agendamento.cliente
+        if "nome" in payload and payload["nome"]:
+            cliente.nome = payload["nome"]
+        if "telefone" in payload and payload["telefone"]:
+            cliente.telefone = payload["telefone"]
+        cliente.save()
 
-        if "telefone" in payload:
-            agendamento.cliente.telefone = payload["telefone"]
-            agendamento.cliente.save()
+        if "servico_id" in payload and payload["servico_id"]:
+            agendamento.servico = get_object_or_404(Servico, id=payload["servico_id"])
 
-        if "servico_id" in payload:
-            novo_servico = get_object_or_404(Servico, id=payload["servico_id"])
-            agendamento.servico = novo_servico
-
-        if "data" in payload:
+        if "data" in payload and payload["data"]:
             agendamento.data = payload["data"]
 
-        if "horario" in payload:
+        if "horario" in payload and payload["horario"]:
             agendamento.horario = payload["horario"]
 
         agendamento.save()
 
+        # Garante que a mensagem do WhatsApp tenha sempre nome e telefone
         whatsapp_url = gerar_link_whatsapp_reagendamento(agendamento)
 
         return JsonResponse({
@@ -226,7 +225,6 @@ def reagendar(request, token):
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=400)
-
 
 
 
