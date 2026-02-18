@@ -52,12 +52,13 @@ Guarde este token para reagendar ou cancelar futuramente.
 # WHATSAPP - REAGENDAMENTO
 # ===============================
 
-def gerar_link_whatsapp_reagendamento(agendamento):
+def gerar_link_whatsapp_reagendamento(agendamento, nome_cliente, telefone_cliente):
+    # Usamos as variáveis passadas diretamente, não o objeto agendamento.cliente
     mensagem = f"""
 Reagendamento solicitado
 
-Cliente: {agendamento.cliente.nome}
-Telefone: {agendamento.cliente.telefone}
+Cliente: {nome_cliente}
+Telefone: {telefone_cliente}
 
 Servico: {agendamento.servico.nome}
 
@@ -69,10 +70,8 @@ Token do agendamento:
 
 Reagendamento informado pelo cliente.
 """
-
     mensagem_codificada = urllib.parse.quote(mensagem)
     return f"https://wa.me/{BARBEIRO_PHONE}?text={mensagem_codificada}"
-
 
 # ===============================
 # WHATSAPP - CANCELAMENTO
