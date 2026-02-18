@@ -196,27 +196,25 @@ def reagendar(request, token):
     try:
         payload = json.loads(request.body)
 
-        novo_nome = payload.get("nome")
-        novo_telefone = payload.get("telefone")
-        novo_servico_id = payload.get("servico_id")
-        nova_data = payload.get("data")
-        novo_horario = payload.get("horario")
+        # Atualiza somente os campos que vieram no payload
+        if "nome" in payload:
+            agendamento.cliente.nome = payload["nome"]
+            agendamento.cliente.save()
 
-        if not all([novo_nome, novo_telefone, novo_servico_id, nova_data, novo_horario]):
-            return JsonResponse({"error": "Dados incompletos"}, status=400)
+        if "telefone" in payload:
+            agendamento.cliente.telefone = payload["telefone"]
+            agendamento.cliente.save()
 
-        # 🔹 Atualiza cliente
-        agendamento.cliente.nome = novo_nome
-        agendamento.cliente.telefone = novo_telefone
-        agendamento.cliente.save()
+        if "servico_id" in payload:
+            novo_servico = get_object_or_404(Servico, id=payload["servico_id"])
+            agendamento.servico = novo_servico
 
-        # 🔹 Atualiza serviço
-        novo_servico = get_object_or_404(Servico, id=novo_servico_id)
-        agendamento.servico = novo_servico
+        if "data" in payload:
+            agendamento.data = payload["data"]
 
-        # 🔹 Atualiza data e horário
-        agendamento.data = nova_data
-        agendamento.horario = novo_horario
+        if "horario" in payload:
+            agendamento.horario = payload["horario"]
+
         agendamento.save()
 
         whatsapp_url = gerar_link_whatsapp_reagendamento(agendamento)
@@ -228,6 +226,8 @@ def reagendar(request, token):
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=400)
+
+
 
 
 # ===============================
